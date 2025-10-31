@@ -1,0 +1,366 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "User API",
+        "description": "API for managing users and balance transfers with two-factor confirmation",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Local development server"
+        }
+    ],
+    "paths": {
+        "/user": {
+            "put": {
+                "tags": [
+                    "User Management"
+                ],
+                "summary": "Update authenticated user profile",
+                "operationId": "c1f4bf30328d3929c1d0563d017d5710",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/users/{id}/balance": {
+            "put": {
+                "tags": [
+                    "Admin - Balance Management"
+                ],
+                "summary": "Update user balance (Admin only)",
+                "operationId": "ef73442aff8dd2e21fea8b277f2f6505",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "1"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "balance": {
+                                        "description": "New balance value (decimal string)",
+                                        "type": "string",
+                                        "example": "1000.50"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Balance updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin access required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/transfer/initiate": {
+            "post": {
+                "tags": [
+                    "Balance Transfer"
+                ],
+                "summary": "Initiate a balance transfer (Step 1)",
+                "description": "Initiates a balance transfer between users. Returns a confirmation token that must be used within 5 minutes to complete the transfer.",
+                "operationId": "8009e0122f43d7845e0b529bd5ab23da",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "recipient_id",
+                                    "amount"
+                                ],
+                                "properties": {
+                                    "recipient_id": {
+                                        "description": "ID of the recipient user",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "amount": {
+                                        "description": "Amount to transfer (decimal string)",
+                                        "type": "string",
+                                        "example": "100.00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfer initiated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Transfer initiated. Please confirm using the provided token."
+                                        },
+                                        "confirmation_token": {
+                                            "type": "string",
+                                            "example": "abc123def456"
+                                        },
+                                        "expires_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2025-11-01T10:15:00Z"
+                                        },
+                                        "amount": {
+                                            "type": "string",
+                                            "example": "100.00"
+                                        },
+                                        "recipient_id": {
+                                            "type": "integer",
+                                            "example": 2
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipient not found"
+                    },
+                    "422": {
+                        "description": "Validation error - insufficient balance or invalid amount"
+                    },
+                    "429": {
+                        "description": "Too many requests - rate limit exceeded"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/transfer/confirm": {
+            "post": {
+                "tags": [
+                    "Balance Transfer"
+                ],
+                "summary": "Confirm and execute a balance transfer (Step 2)",
+                "description": "Confirms and executes a previously initiated transfer using the confirmation token. The token expires after 5 minutes and can only be used once.",
+                "operationId": "c04dc48efaf55d32b24c8cab27e49c68",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "confirmation_token"
+                                ],
+                                "properties": {
+                                    "confirmation_token": {
+                                        "description": "Confirmation token received from /transfer/initiate",
+                                        "type": "string",
+                                        "example": "abc123def456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer completed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransferResource"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid confirmation - token expired, already used, or blocked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "This confirmation token has expired."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Invalid confirmation token or recipient not found"
+                    },
+                    "429": {
+                        "description": "Too many requests - rate limit exceeded"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "TransferResource": {
+                "title": "Transfer Resource",
+                "description": "Transfer result containing updated sender and recipient data",
+                "properties": {
+                    "sender": {
+                        "$ref": "#/components/schemas/UserResource"
+                    },
+                    "recipient": {
+                        "$ref": "#/components/schemas/UserResource"
+                    }
+                },
+                "type": "object"
+            },
+            "UserResource": {
+                "title": "User Resource",
+                "description": "User data response",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "John Doe"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "john@example.com"
+                    },
+                    "balance": {
+                        "description": "User balance (decimal string)",
+                        "type": "string",
+                        "example": "1000.50"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-01T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-01T12:00:00Z"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "User Management",
+            "description": "User Management"
+        },
+        {
+            "name": "Admin - Balance Management",
+            "description": "Admin - Balance Management"
+        },
+        {
+            "name": "Balance Transfer",
+            "description": "Balance Transfer"
+        }
+    ]
+}
