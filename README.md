@@ -36,12 +36,6 @@ Swagger UI: http://localhost:8000/api/documentation
 ### Admin Only
 - `PUT /api/v1/users/{id}/balance` - Update any user balance
 
-## Documentation
-
-- [SWAGGER.md](SWAGGER.md) - Full API documentation and usage
-- [SECURITY_FIXES.md](SECURITY_FIXES.md) - Security enhancements
-- [TEST_COVERAGE.md](TEST_COVERAGE.md) - Test documentation
-
 ## Tech Stack
 
 - Laravel 11
